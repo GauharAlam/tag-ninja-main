@@ -1,238 +1,344 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Sparkles, AlertCircle } from "lucide-react";
+import { Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Zap, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Define a type for our trend items
-type Trend = {
-  keyword: string;
-  trend: string;
-  difficulty: "High" | "Medium" | "Low" | "Easy";
-};
 
 const ExtensionPopup = () => {
   const [activeTab, setActiveTab] = useState("tags");
   const [inputText, setInputText] = useState("");
   const [platform, setPlatform] = useState<"youtube" | "linkedin">("youtube");
   const [savedItems, setSavedItems] = useState<string[]>([]);
-  
-  const [tags, setTags] = useState<string[]>([]);
-  const [titles, setTitles] = useState<string[]>([]);
-  const [trends, setTrends] = useState<Trend[]>([]);
-  
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Fetch trends when the component mounts
-  useEffect(() => {
-    const fetchTrends = async () => {
-        try {
-            const response = await fetch('http://localhost:3001/api/get-trends');
-            if (!response.ok) throw new Error("Failed to fetch trends");
-            const data = await response.json();
-            setTrends(data);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-    fetchTrends();
-  }, []);
+  // State for generated content
+  const [generatedTags, setGeneratedTags] = useState<string[]>([]);
+  const [generatedTitles, setGeneratedTitles] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Hardcoded trending keywords for now
+  const trendingKeywords = [
+    { keyword: "AI content creation", trend: "+125%", difficulty: "Medium" },
+    { keyword: "YouTube Shorts", trend: "+89%", difficulty: "High" },
+    { keyword: "Creator monetization", trend: "+67%", difficulty: "Low" },
+    { keyword: "LinkedIn personal brand", trend: "+54%", difficulty: "Medium" },
+    { keyword: "Content automation", trend: "+43%", difficulty: "Easy" },
+  ];
 
-const handleGenerate = async () => {
-    if (!inputText) {
-      toast({ title: "Input required", description: "Please enter a topic to generate content.", variant: "destructive" });
+  const handleGenerate = async (type: 'titles' | 'tags') => {
+    if (!inputText.trim()) {
+      toast({
+        title: "Input required",
+        description: "Please enter a topic or description first.",
+        variant: "destructive",
+      });
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    setTags([]);
-    setTitles([]);
+    // Clear previous results for the active tab
+    if (type === 'tags') setGeneratedTags([]);
+    if (type === 'titles') setGeneratedTitles([]);
+
 
     try {
-      const [tagsResponse, titlesResponse] = await Promise.all([
-        fetch('http://localhost:3001/api/generate-tags', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ inputText, platform }),
-        }),
-        fetch('http://localhost:3001/api/generate-titles', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inputText, platform }),
-        }),
-      ]);
+      const response = await fetch('http://localhost:3001/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt: inputText, platform, type }),
+      });
 
-      // *** FIX IS HERE: Check if responses are OK ***
-      if (!tagsResponse.ok || !titlesResponse.ok) {
-        // Try to get the error message from the backend
-        const errorData = await tagsResponse.json().catch(() => ({ error: "An unknown error occurred on the server." }));
-        throw new Error(errorData.error || "Failed to generate content from AI.");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate content.");
       }
 
-      const tagsData = await tagsResponse.json();
-      const titlesData = await titlesResponse.json();
-      
-      // Ensure data is an array before setting it
-      setTags(Array.isArray(tagsData) ? tagsData : []);
-      setTitles(Array.isArray(titlesData) ? titlesData : []);
+      const data = await response.json();
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(errorMessage);
-      toast({ title: "Generation Failed", description: errorMessage, variant: "destructive" });
+      if (type === 'titles') {
+        setGeneratedTitles(data.suggestions);
+        setActiveTab('titles');
+      } else if (type === 'tags') {
+        // The backend returns a comma-separated string for tags
+        const tagsArray = data.suggestions[0]?.split(',').map((tag: string) => tag.trim());
+        setGeneratedTags(tagsArray || []);
+        setActiveTab('tags');
+      }
+
+    } catch (err: any) {
+      setError(err.message);
+      toast({
+        title: "Generation Failed",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied!", description: "Content copied to clipboard.", duration: 2000 });
+    toast({
+      title: "Copied!",
+      description: "Content copied to clipboard",
+      duration: 2000,
+    });
   };
 
   const toggleSave = (item: string) => {
-    setSavedItems(prev => 
-      prev.includes(item) 
-        ? prev.filter(i => i !== item) 
-        : [...prev, item]
-    );
-  };
-  
-  const getDifficultyClass = (difficulty: Trend['difficulty']) => {
-    switch(difficulty) {
-      case 'High': return 'text-destructive border-destructive';
-      case 'Medium': return 'text-creator-warning border-creator-warning';
-      default: return 'text-creator-success border-creator-success';
+    if (savedItems.includes(item)) {
+      setSavedItems(savedItems.filter(i => i !== item));
+      toast({
+        title: "Removed from saved",
+        description: "Item removed from your collection",
+      });
+    } else {
+      setSavedItems([...savedItems, item]);
+      toast({
+        title: "Saved!",
+        description: "Item added to your collection",
+      });
     }
   };
-
-  const renderContent = () => {
-    if (isLoading) {
-      return Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex items-center space-x-4 mb-2">
-          <Skeleton className="h-8 w-full rounded-md" />
-        </div>
-      ));
-    }
-
-    if (error) {
-        return (
-            <div className="text-center py-8 text-muted-foreground">
-                <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50 text-destructive" />
-                <p className="text-sm font-semibold">Generation Failed</p>
-                <p className="text-xs">{error}</p>
-            </div>
-        );
-    }
-    
-    return null; // Return null to let the TabsContent handle display
-  };
-
 
   return (
-    <div className="w-96 h-[500px] bg-background text-foreground rounded-lg overflow-hidden flex flex-col">
+    <div className="w-96 h-[500px] bg-gradient-card border border-border rounded-lg shadow-card overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="bg-gradient-primary p-4 text-primary-foreground">
+      <div className="bg-gradient-primary p-4 text-white">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold">Creator Assistant</h1>
           <div className="flex gap-2">
-            <Button variant={platform === "youtube" ? "secondary" : "ghost"} size="icon" onClick={() => setPlatform("youtube")} className="h-8 w-8"> <Youtube className="w-4 h-4" /> </Button>
-            <Button variant={platform === "linkedin" ? "secondary" : "ghost"} size="icon" onClick={() => setPlatform("linkedin")} className="h-8 w-8"> <Linkedin className="w-4 h-4" /> </Button>
+            <Button
+              variant={platform === "youtube" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setPlatform("youtube")}
+              className="text-white border-white/30"
+            >
+              <Youtube className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={platform === "linkedin" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setPlatform("linkedin")}
+              className="text-white border-white/30"
+            >
+              <Linkedin className="w-4 h-4" />
+            </Button>
           </div>
         </div>
+
         <div className="relative">
           <Textarea
-            placeholder={`Enter a topic, like "AI productivity tools"...`}
+            placeholder={`Paste your ${platform === "youtube" ? "video title/description" : "LinkedIn post draft"} here...`}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/70 resize-none h-20 pr-28"
+            className="bg-white/10 border-white/20 text-white placeholder:text-white/70 resize-none h-24 pr-24"
           />
-          <Button onClick={handleGenerate} disabled={isLoading} className="absolute bottom-2 right-2">
-            <Sparkles className="w-4 h-4 mr-2" />
-            {isLoading ? "..." : "Generate"}
+          <Button
+            onClick={() => handleGenerate(activeTab as 'tags' | 'titles')}
+            disabled={isLoading}
+            className="absolute bottom-2 right-2 bg-white/20 hover:bg-white/30 text-white"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4 mr-2" />
+            )}
+            Generate
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <TabsList className="grid grid-cols-4 mx-auto mt-2 w-[calc(100%-1rem)]">
-          <TabsTrigger value="tags">Tags</TabsTrigger>
-          <TabsTrigger value="titles">Titles</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="saved">Saved</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 bg-secondary/50 m-2">
+          <TabsTrigger value="tags" className="text-xs">Tags</TabsTrigger>
+          <TabsTrigger value="titles" className="text-xs">Titles</TabsTrigger>
+          <TabsTrigger value="trends" className="text-xs">Trends</TabsTrigger>
+          <TabsTrigger value="saved" className="text-xs">Saved</TabsTrigger>
         </TabsList>
-        <div className="px-2 pb-2 flex-1 overflow-auto mt-2">
-            {isLoading || error ? renderContent() :
+
+        <div className="px-2 pb-2 flex-1 overflow-auto">
+          {error && (
+            <div className="flex flex-col items-center justify-center h-full text-destructive text-center">
+              <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+                <span className="text-2xl">!</span>
+              </div>
+              <p className="font-semibold">Generation Failed</p>
+              <p className="text-xs">{error}</p>
+            </div>
+          )}
+
+          {!error && (
             <>
-                <TabsContent value="tags" className="space-y-2">
-                    {tags.length > 0 ? tags.map((tag, i) => (
-                    <Card key={i} className="p-2 flex items-center justify-between group">
-                        <span className="text-sm">{tag}</span>
-                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(tag)}><Copy className="w-3.5 h-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleSave(tag)}><Heart className={`w-3.5 h-3.5 ${savedItems.includes(tag) ? 'fill-red-500 text-red-500' : ''}`} /></Button>
-                        </div>
-                    </Card>
-                    )) : <p className="text-center text-sm text-muted-foreground pt-8">Generated tags will appear here.</p>}
-                </TabsContent>
-
-                <TabsContent value="titles" className="space-y-2">
-                    {titles.length > 0 ? titles.map((title, i) => (
-                    <Card key={i} className="p-2 flex items-center justify-between group">
-                        <span className="text-sm">{title}</span>
-                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(title)}><Copy className="w-3.5 h-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleSave(title)}><Heart className={`w-3.5 h-3.5 ${savedItems.includes(title) ? 'fill-red-500 text-red-500' : ''}`} /></Button>
-                        </div>
-                    </Card>
-                    )) : <p className="text-center text-sm text-muted-foreground pt-8">Generated titles will appear here.</p>}
-                </TabsContent>
-
-                <TabsContent value="trends" className="space-y-2">
-                    {trends.map((item, i) => (
-                    <Card key={i} className="p-3">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium">{item.keyword}</p>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className={getDifficultyClass(item.difficulty)}>{item.difficulty}</Badge>
-                                <div className="flex items-center text-creator-success text-xs font-semibold">
-                                    <TrendingUp className="w-3 h-3 mr-1" />{item.trend}
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
+              <TabsContent value="tags" className="h-full space-y-2">
+                {generatedTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {generatedTags.map((tag, i) => (
+                      <div key={i} className="flex items-center gap-1">
+                        <Badge
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-creator-primary hover:text-white transition-colors text-xs"
+                          onClick={() => copyToClipboard(tag)}
+                        >
+                          {tag}
+                          <Copy className="w-3 h-3 ml-1" />
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleSave(tag)}
+                          className="p-1 h-auto"
+                        >
+                          <Heart
+                            className={`w-3 h-3 ${savedItems.includes(tag) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`}
+                          />
+                        </Button>
+                      </div>
                     ))}
-                </TabsContent>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="text-sm">Enter a topic and click Generate</p>
+                  </div>
+                )}
+              </TabsContent>
 
-                <TabsContent value="saved" className="space-y-2">
-                    {savedItems.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                        <Star className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No saved items yet</p>
-                    </div>
-                    ) : (
-                    savedItems.map((item, i) => (
-                        <Card key={i} className="p-2 flex items-center justify-between group">
-                            <span className="text-sm flex-1 truncate pr-2">{item}</span>
-                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(item)}><Copy className="w-3.5 h-3.5" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleSave(item)}><Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" /></Button>
-                            </div>
-                        </Card>
-                    ))
-                    )}
-                </TabsContent>
+              <TabsContent value="titles" className="h-full space-y-2">
+                {generatedTitles.length > 0 ? (
+                  generatedTitles.map((template, i) => (
+                    <Card key={i} className="p-3 cursor-pointer hover:bg-accent transition-colors group">
+                      <div className="flex items-start justify-between">
+                        <p className="text-sm flex-1 leading-relaxed">{template}</p>
+                        <div className="flex gap-1 ml-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(template)}
+                            className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleSave(template)}
+                            className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Heart
+                              className={`w-3 h-3 ${savedItems.includes(template) ? 'fill-red-500 text-red-500' : ''}`}
+                            />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="text-sm">Enter a topic and click Generate</p>
+                  </div>
+                )}
+              </TabsContent>
             </>
-            }
+          )}
+
+          <TabsContent value="trends" className="h-full space-y-2">
+            <div className="text-xs text-muted-foreground mb-2">
+              Trending keywords & topics
+            </div>
+            {trendingKeywords.map((item, i) => (
+              <Card key={i} className="p-3 cursor-pointer hover:bg-accent transition-colors group">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{item.keyword}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center text-creator-success text-xs">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        {item.trend}
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${item.difficulty === "Easy" ? "text-creator-success border-creator-success" :
+                          item.difficulty === "Medium" ? "text-creator-warning border-creator-warning" :
+                            "text-destructive border-destructive"
+                          }`}
+                      >
+                        {item.difficulty}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(item.keyword)}
+                      className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleSave(item.keyword)}
+                      className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Heart
+                        className={`w-3 h-3 ${savedItems.includes(item.keyword) ? 'fill-red-500 text-red-500' : ''}`}
+                      />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="saved" className="h-full space-y-2">
+            <div className="text-xs text-muted-foreground mb-2">
+              Your saved collection ({savedItems.length})
+            </div>
+            {savedItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Star className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No saved items yet</p>
+                <p className="text-xs">Click the heart icon to save items</p>
+              </div>
+            ) : (
+              savedItems.map((item, i) => (
+                <Card key={i} className="p-3 cursor-pointer hover:bg-accent transition-colors group">
+                  <div className="flex items-start justify-between">
+                    <p className="text-sm flex-1 leading-relaxed">{item}</p>
+                    <div className="flex gap-1 ml-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(item)}
+                        className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleSave(item)}
+                        className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Heart className="w-3 h-3 fill-red-500 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </TabsContent>
         </div>
       </Tabs>
     </div>
