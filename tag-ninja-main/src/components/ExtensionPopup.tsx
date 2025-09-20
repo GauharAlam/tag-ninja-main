@@ -4,8 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Zap, Loader2, Download, Moon, Sun, Sparkles, AlertCircle } from "lucide-react";
+import { Bot, Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Zap, Loader2, Download, Moon, Sun, Sparkles, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AiAssistant } from "./AiAssistant";
 
 const ExtensionPopup = () => {
   const [activeTab, setActiveTab] = useState("tags");
@@ -14,6 +15,7 @@ const ExtensionPopup = () => {
   const [savedItems, setSavedItems] = useState<string[]>([]);
   const { toast } = useToast();
   const [theme, setTheme] = useState("dark");
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
   const [generatedContent, setGeneratedContent] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +61,7 @@ const ExtensionPopup = () => {
       setIsLoading(false);
     }
   };
-
+  
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
@@ -95,7 +97,7 @@ const ExtensionPopup = () => {
 
   return (
     <div className={`w-96 h-[500px] bg-background text-foreground border border-border rounded-lg shadow-lg overflow-hidden flex flex-col ${theme}`}>
-      {/* Header */}
+      <AiAssistant open={isAssistantOpen} onOpenChange={setIsAssistantOpen} />
       <div className="bg-secondary p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -103,6 +105,7 @@ const ExtensionPopup = () => {
             <h1 className="text-lg font-bold">Creator Assistant</h1>
           </div>
           <div className="flex gap-2 items-center">
+            <Button variant="ghost" size="sm" onClick={() => setIsAssistantOpen(true)}><Bot className="w-4 h-4" /></Button>
             <Button variant={platform === "youtube" ? "default" : "ghost"} size="sm" onClick={() => setPlatform("youtube")}><Youtube className="w-4 h-4" /></Button>
             <Button variant={platform === "linkedin" ? "default" : "ghost"} size="sm" onClick={() => setPlatform("linkedin")}><Linkedin className="w-4 h-4" /></Button>
             <Button variant="ghost" size="sm" onClick={toggleTheme}>{theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}</Button>
@@ -115,8 +118,7 @@ const ExtensionPopup = () => {
           </Button>
         </div>
       </div>
-
-      {/* Tabs */}
+      
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
         <TabsList className="grid w-full grid-cols-4 bg-muted m-2">
           <TabsTrigger value="tags">Tags</TabsTrigger>

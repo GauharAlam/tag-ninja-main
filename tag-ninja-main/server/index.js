@@ -11,38 +11,26 @@ app.use(express.json());
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Main content generation endpoint
 app.post('/api/generate', async (req, res) => {
   const { prompt, platform } = req.body;
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const generationPrompt = `
-    You are an AI assistant for a ${platform} content creator. Based on the following video title or description, please generate the following:
+    You are an AI assistant for a ${platform} content creator. Based on the following input, generate the required content.
+    Input: "${prompt}"
 
-    **Input:** "${prompt}"
+    [START_TITLES]
+    Generate 5-7 engaging, click-worthy titles.
+    [END_TITLES]
 
-    **1. Tags:**
-    Provide 15–20 SEO-friendly tags, sorted by importance.
-    Format: A clean, comma-separated list.
-
-    **2. Titles:**
-    Generate 5–7 engaging, click-worthy titles.
-    Format: A numbered list.
-
-    **3. Trending Topics:**
+    [START_TAGS]
+    Provide 15-20 SEO-friendly tags, comma-separated.
+    [END_TAGS]
+    
+    [START_TRENDS]
     Suggest 5 trending topics related to the input.
-    Format: A numbered list.
-
-    **4. Hooks:**
-    Generate 3–5 strong opening hooks for a video.
-    Format: A numbered list.
-
-    **5. Hashtags:**
-    Suggest 10–15 optimized hashtags.
-    Format: A comma-separated list.
-
-    **6. SEO Score:**
-    Rate the input on SEO effectiveness from 1–100, and provide 2 suggestions for improvement.
-    Format: "Score: [score]/100. Suggestions: [suggestion 1], [suggestion 2]".
+    [END_TRENDS]
   `;
 
   try {
@@ -50,38 +38,51 @@ app.post('/api/generate', async (req, res) => {
     const response = await result.response;
     const text = response.text();
 
-    // More robust parsing logic
-    const parseSection = (sectionTitle, type) => {
-      const regex = new RegExp(`\\*\\*\\d+\\.\\s*${sectionTitle}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\n\\*\\*\\d+\\. |$)`, 'i');
-      const match = text.match(regex);
-      if (!match || !match[1]) return [];
-      
-      const content = match[1].trim();
-      if (type === 'list') {
-        return content.split('\n').map(item => item.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
+    const parseSection = (tag) => {
+      try {
+        const regex = new RegExp(`\\[START_${tag}\\]([\\s\\S]*?)\\[END_${tag}\\]`, 'i');
+        const match = text.match(regex);
+        return match ? match[1].trim() : '';
+      } catch (e) {
+        return '';
       }
-      if (type === 'csv') {
-        return content.split(',').map(item => item.trim()).filter(Boolean);
-      }
-      return [];
     };
 
-    const seoMatch = text.match(/Score: (\d+)\/100\. Suggestions: (.*)/i);
+    const titlesText = parseSection('TITLES');
+    const tagsText = parseSection('TAGS');
+    const trendsText = parseSection('TRENDS');
 
     res.json({
-      tags: parseSection('Tags', 'csv'),
-      titles: parseSection('Titles', 'list'),
-      trendingTopics: parseSection('Trending Topics', 'list'),
-      hooks: parseSection('Hooks', 'list'),
-      hashtags: parseSection('Hashtags', 'csv'),
-      seo: seoMatch ? { score: parseInt(seoMatch[1]), suggestions: seoMatch[2].trim() } : null,
+      titles: titlesText.split('\n').map(item => item.replace(/^\d+\.\s*/, '').trim()).filter(Boolean),
+      tags: tagsText.split(',').map(item => item.trim()).filter(Boolean),
+      trendingTopics: trendsText.split('\n').map(item => item.replace(/^\d+\.\s*/, '').trim()).filter(Boolean),
     });
     
   } catch (error) {
-    console.error('Error generating content from Gemini:', error);
+    console.error('Error generating content:', error);
     res.status(500).json({ error: 'Failed to generate content from AI.' });
   }
 });
+
+// New AI Assistant chat endpoint
+app.post('/api/chat', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    res.json({ response: text });
+  } catch (error) {
+    console.error('Error with AI chat:', error);
+    res.status(500).json({ error: 'Failed to get response from AI.' });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

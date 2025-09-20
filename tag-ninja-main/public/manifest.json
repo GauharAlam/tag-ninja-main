@@ -11,13 +11,13 @@
     "default_popup": "popup.html"
   },
   "icons": {
-    "16": "favicon.ico",
-    "48": "favicon.ico",
-    "128": "favicon.ico"
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
   },
   "web_accessible_resources": [
     {
-      "resources": [ "logo.png", "favicon.ico" ],
+      "resources": [ "logo.png" ],
       "matches": [ "<all_urls>" ]
     }
   ]
