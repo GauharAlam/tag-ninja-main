@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
+import tailwindcssTypography from "@tailwindcss/typography";
 
 export default {
   darkMode: ["class"],
@@ -13,7 +15,15 @@ export default {
       },
     },
     extend: {
+      typography: ({ theme }: { theme: any }) => ({
+        DEFAULT: {
+          css: {
+            'p': { color: theme('colors.prose-p') },
+          },
+        },
+      }),
       colors: {
+        'prose-p': 'hsl(var(--prose-p))',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -47,12 +57,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        creator: {
-          primary: "hsl(var(--creator-primary))",
-          secondary: "hsl(var(--creator-secondary))",
-          success: "hsl(var(--creator-success))",
-          warning: "hsl(var(--creator-warning))",
-        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -61,48 +65,19 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
-        },
-        fadeIn: {
-          "0%": { opacity: "0", transform: "translateY(10px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-        slideUp: {
-          "0%": { transform: "translateY(20px)", opacity: "0" },
-          "100%": { transform: "translateY(0)", opacity: "1" },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "pulse-slow": "pulse 3s ease-in-out infinite",
-        "fade-in": "fadeIn 0.5s ease-in-out",
-        "slide-up": "slideUp 0.3s ease-out",
-      },
-      backgroundImage: {
-        "gradient-primary": "var(--gradient-primary)",
-        "gradient-secondary": "var(--gradient-secondary)",
-        "gradient-card": "var(--gradient-card)",
-      },
-      boxShadow: {
-        "creator": "var(--shadow-creator)",
-        "card": "var(--shadow-card)",
-        "glow": "var(--shadow-glow)",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate, tailwindcssTypography],
 } satisfies Config;

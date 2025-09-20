@@ -4,9 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Bot, Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Zap, Loader2, Download, Moon, Sun, Sparkles, AlertCircle } from "lucide-react";
+import { Bot, Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Zap, Loader2, Download, Moon, Sun, Sparkles, AlertCircle, Trash2, X, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AiAssistant } from "./AiAssistant";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const ExtensionPopup = () => {
   const [activeTab, setActiveTab] = useState("tags");
@@ -95,6 +96,16 @@ const ExtensionPopup = () => {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
+  const handleClear = () => {
+    setInputText("");
+    setGeneratedContent({});
+    setError(null);
+  };
+
+  const handleClose = () => {
+    window.close();
+  };
+
   return (
     <div className={`w-96 h-[500px] bg-background text-foreground border border-border rounded-lg shadow-lg overflow-hidden flex flex-col ${theme}`}>
       <AiAssistant open={isAssistantOpen} onOpenChange={setIsAssistantOpen} />
@@ -104,11 +115,34 @@ const ExtensionPopup = () => {
             <img src="/logo.png" alt="Creator Assistant Logo" className="w-6 h-6" />
             <h1 className="text-lg font-bold">Creator Assistant</h1>
           </div>
-          <div className="flex gap-2 items-center">
-            <Button variant="ghost" size="sm" onClick={() => setIsAssistantOpen(true)}><Bot className="w-4 h-4" /></Button>
+          <div className="flex items-center">
             <Button variant={platform === "youtube" ? "default" : "ghost"} size="sm" onClick={() => setPlatform("youtube")}><Youtube className="w-4 h-4" /></Button>
             <Button variant={platform === "linkedin" ? "default" : "ghost"} size="sm" onClick={() => setPlatform("linkedin")}><Linkedin className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="sm" onClick={toggleTheme}>{theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsAssistantOpen(true)}>
+                  <Bot className="mr-2 h-4 w-4" />
+                  <span>AI Assistant</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleTheme}>
+                  {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
+                  <span>Toggle Theme</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleClear}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Clear</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleClose}>
+                  <X className="mr-2 h-4 w-4" />
+                  <span>Close</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <div className="relative">
