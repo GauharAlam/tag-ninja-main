@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config({ path: './server/.env' });
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -8,6 +8,8 @@ const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// console.log("Attempting to use API Key:", process.env.GEMINI_API_KEY);
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -31,16 +33,24 @@ app.post('/api/generate', async (req, res) => {
       generationPrompt = `You are a helpful assistant for a ${platform} content creator. Respond to the following prompt: "${prompt}".`;
   }
 
-  try {
+   try {
     const result = await model.generateContent(generationPrompt);
     const response = await result.response;
     const text = response.text();
 
-    // Process the text to return a clean array
-    const suggestions = text
-      .split('\n')
-      .map(item => item.replace(/^\d+\.\s*/, '').trim()) // Removes numbering like "1. "
-      .filter(item => item.length > 0);
+    // --- REPLACE THE OLD PARSING LOGIC WITH THIS ---
+    let suggestions;
+    if (text.includes('\n')) {
+      // Handle multi-line or numbered lists
+      suggestions = text
+        .split('\n')
+        .map(item => item.replace(/^\d+\.\s*/, '').trim()) // Removes numbering like "1. "
+        .filter(item => item.length > 0);
+    } else {
+      // Handle comma-separated lists
+      suggestions = text.split(',').map(item => item.trim()).filter(item => item.length > 0);
+    }
+    // --- END OF REPLACEMENT ---
 
     res.json({ suggestions });
   } catch (error) {

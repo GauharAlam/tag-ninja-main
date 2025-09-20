@@ -63,12 +63,10 @@ const ExtensionPopup = () => {
       const data = await response.json();
 
       if (type === 'titles') {
-        setGeneratedTitles(data.suggestions);
+        setGeneratedTitles(data.suggestions || []);
         setActiveTab('titles');
       } else if (type === 'tags') {
-        // The backend returns a comma-separated string for tags
-        const tagsArray = data.suggestions[0]?.split(',').map((tag: string) => tag.trim());
-        setGeneratedTags(tagsArray || []);
+        setGeneratedTags(data.suggestions || []);
         setActiveTab('tags');
       }
 
