@@ -14,5 +14,11 @@
     "16": "favicon.ico",
     "48": "favicon.ico",
     "128": "favicon.ico"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [ "logo.png", "favicon.ico" ],
+      "matches": [ "<all_urls>" ]
+    }
+  ]
 }

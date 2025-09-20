@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Zap, Loader2 } from "lucide-react";
+import { Copy, Heart, Youtube, Linkedin, TrendingUp, Star, Zap, Loader2, Download, Moon, Sun, Sparkles, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ExtensionPopup = () => {
@@ -13,23 +13,13 @@ const ExtensionPopup = () => {
   const [platform, setPlatform] = useState<"youtube" | "linkedin">("youtube");
   const [savedItems, setSavedItems] = useState<string[]>([]);
   const { toast } = useToast();
+  const [theme, setTheme] = useState("dark");
 
-  // State for generated content
-  const [generatedTags, setGeneratedTags] = useState<string[]>([]);
-  const [generatedTitles, setGeneratedTitles] = useState<string[]>([]);
+  const [generatedContent, setGeneratedContent] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Hardcoded trending keywords for now
-  const trendingKeywords = [
-    { keyword: "AI content creation", trend: "+125%", difficulty: "Medium" },
-    { keyword: "YouTube Shorts", trend: "+89%", difficulty: "High" },
-    { keyword: "Creator monetization", trend: "+67%", difficulty: "Low" },
-    { keyword: "LinkedIn personal brand", trend: "+54%", difficulty: "Medium" },
-    { keyword: "Content automation", trend: "+43%", difficulty: "Easy" },
-  ];
-
-  const handleGenerate = async (type: 'titles' | 'tags') => {
+  const handleGenerate = async () => {
     if (!inputText.trim()) {
       toast({
         title: "Input required",
@@ -41,18 +31,13 @@ const ExtensionPopup = () => {
 
     setIsLoading(true);
     setError(null);
-    // Clear previous results for the active tab
-    if (type === 'tags') setGeneratedTags([]);
-    if (type === 'titles') setGeneratedTitles([]);
-
+    setGeneratedContent({});
 
     try {
       const response = await fetch('http://localhost:3001/api/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt: inputText, platform, type }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: inputText, platform }),
       });
 
       if (!response.ok) {
@@ -61,15 +46,8 @@ const ExtensionPopup = () => {
       }
 
       const data = await response.json();
-
-      if (type === 'titles') {
-        setGeneratedTitles(data.suggestions || []);
-        setActiveTab('titles');
-      } else if (type === 'tags') {
-        setGeneratedTags(data.suggestions || []);
-        setActiveTab('tags');
-      }
-
+      setGeneratedContent(data);
+      
     } catch (err: any) {
       setError(err.message);
       toast({
@@ -82,7 +60,6 @@ const ExtensionPopup = () => {
     }
   };
 
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
@@ -91,251 +68,90 @@ const ExtensionPopup = () => {
       duration: 2000,
     });
   };
+  
+  const downloadAs = (format: "csv" | "txt", content: string[]) => {
+    const text = format === "csv" ? content.join(",") : content.join("\n");
+    const blob = new Blob([text], { type: `text/${format}` });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${activeTab}.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const toggleSave = (item: string) => {
-    if (savedItems.includes(item)) {
-      setSavedItems(savedItems.filter(i => i !== item));
-      toast({
-        title: "Removed from saved",
-        description: "Item removed from your collection",
-      });
-    } else {
-      setSavedItems([...savedItems, item]);
-      toast({
-        title: "Saved!",
-        description: "Item added to your collection",
-      });
-    }
+    setSavedItems(savedItems.includes(item)
+      ? savedItems.filter(i => i !== item)
+      : [...savedItems, item]
+    );
+  };
+  
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
   return (
-    <div className="w-96 h-[500px] bg-gradient-card border border-border rounded-lg shadow-card overflow-hidden flex flex-col">
+    <div className={`w-96 h-[500px] bg-background text-foreground border border-border rounded-lg shadow-lg overflow-hidden flex flex-col ${theme}`}>
       {/* Header */}
-      <div className="bg-gradient-primary p-4 text-white">
+      <div className="bg-secondary p-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-bold">Creator Assistant</h1>
-          <div className="flex gap-2">
-            <Button
-              variant={platform === "youtube" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setPlatform("youtube")}
-              className="text-white border-white/30"
-            >
-              <Youtube className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={platform === "linkedin" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setPlatform("linkedin")}
-              className="text-white border-white/30"
-            >
-              <Linkedin className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="Creator Assistant Logo" className="w-6 h-6" />
+            <h1 className="text-lg font-bold">Creator Assistant</h1>
+          </div>
+          <div className="flex gap-2 items-center">
+            <Button variant={platform === "youtube" ? "default" : "ghost"} size="sm" onClick={() => setPlatform("youtube")}><Youtube className="w-4 h-4" /></Button>
+            <Button variant={platform === "linkedin" ? "default" : "ghost"} size="sm" onClick={() => setPlatform("linkedin")}><Linkedin className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={toggleTheme}>{theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}</Button>
           </div>
         </div>
-
         <div className="relative">
-          <Textarea
-            placeholder={`Paste your ${platform === "youtube" ? "video title/description" : "LinkedIn post draft"} here...`}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/70 resize-none h-24 pr-24"
-          />
-          <Button
-            onClick={() => handleGenerate(activeTab as 'tags' | 'titles')}
-            disabled={isLoading}
-            className="absolute bottom-2 right-2 bg-white/20 hover:bg-white/30 text-white"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Zap className="w-4 h-4 mr-2" />
-            )}
-            Generate
+          <Textarea placeholder={`Paste your ${platform === "youtube" ? "video idea" : "post topic"} here...`} value={inputText} onChange={(e) => setInputText(e.target.value)} className="bg-background border-border resize-none h-24 pr-28" />
+          <Button onClick={handleGenerate} disabled={isLoading} className="absolute bottom-2 right-2 bg-primary hover:bg-primary/90">
+            {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}Generate
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <TabsList className="grid w-full grid-cols-4 bg-secondary/50 m-2">
-          <TabsTrigger value="tags" className="text-xs">Tags</TabsTrigger>
-          <TabsTrigger value="titles" className="text-xs">Titles</TabsTrigger>
-          <TabsTrigger value="trends" className="text-xs">Trends</TabsTrigger>
-          <TabsTrigger value="saved" className="text-xs">Saved</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 bg-muted m-2">
+          <TabsTrigger value="tags">Tags</TabsTrigger>
+          <TabsTrigger value="titles">Titles</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
+          <TabsTrigger value="saved">Saved</TabsTrigger>
         </TabsList>
 
         <div className="px-2 pb-2 flex-1 overflow-auto">
-          {error && (
-            <div className="flex flex-col items-center justify-center h-full text-destructive text-center">
-              <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">!</span>
-              </div>
-              <p className="font-semibold">Generation Failed</p>
-              <p className="text-xs">{error}</p>
+          {error && <div className="text-destructive text-center p-4 flex flex-col items-center justify-center h-full"><AlertCircle className="w-12 h-12 mb-4" /><p className="font-semibold">Generation Failed</p><p className="text-xs">{error}</p></div>}
+          
+          {!error && !isLoading && !generatedContent.tags && (
+            <div className="text-center py-8 text-muted-foreground flex flex-col items-center justify-center h-full">
+              <Zap className="w-12 h-12 mb-4 opacity-50" />
+              <p className="text-sm">Enter a topic and click Generate</p>
             </div>
           )}
-
-          {!error && (
-            <>
-              <TabsContent value="tags" className="h-full space-y-2">
-                {generatedTags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {generatedTags.map((tag, i) => (
-                      <div key={i} className="flex items-center gap-1">
-                        <Badge
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-creator-primary hover:text-white transition-colors text-xs"
-                          onClick={() => copyToClipboard(tag)}
-                        >
-                          {tag}
-                          <Copy className="w-3 h-3 ml-1" />
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleSave(tag)}
-                          className="p-1 h-auto"
-                        >
-                          <Heart
-                            className={`w-3 h-3 ${savedItems.includes(tag) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`}
-                          />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">Enter a topic and click Generate</p>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="titles" className="h-full space-y-2">
-                {generatedTitles.length > 0 ? (
-                  generatedTitles.map((template, i) => (
-                    <Card key={i} className="p-3 cursor-pointer hover:bg-accent transition-colors group">
-                      <div className="flex items-start justify-between">
-                        <p className="text-sm flex-1 leading-relaxed">{template}</p>
-                        <div className="flex gap-1 ml-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyToClipboard(template)}
-                            className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Copy className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleSave(template)}
-                            className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Heart
-                              className={`w-3 h-3 ${savedItems.includes(template) ? 'fill-red-500 text-red-500' : ''}`}
-                            />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">Enter a topic and click Generate</p>
-                  </div>
-                )}
-              </TabsContent>
-            </>
-          )}
-
+          
+          <TabsContent value="tags" className="h-full space-y-2">
+            {generatedContent.tags?.length > 0 && <div className="flex justify-end gap-2"><Button size="sm" onClick={() => copyToClipboard(generatedContent.tags.join(", "))}>Copy All</Button><Button size="sm" onClick={() => downloadAs("txt", generatedContent.tags)}>.txt</Button><Button size="sm" onClick={() => downloadAs("csv", generatedContent.tags)}>.csv</Button></div>}
+            <div className="flex flex-wrap gap-1">{generatedContent.tags?.map((tag: string, i: number) => <div key={i} className="flex items-center gap-1"><Badge variant="secondary" className="cursor-pointer" onClick={() => copyToClipboard(tag)}>{tag}</Badge><Button variant="ghost" size="sm" onClick={() => toggleSave(tag)} className="p-1 h-auto"><Heart className={`w-3 h-3 ${savedItems.includes(tag) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} /></Button></div>)}</div>
+          </TabsContent>
+          
+          <TabsContent value="titles" className="h-full space-y-2">
+            {generatedContent.titles?.length > 0 && <div className="flex justify-end gap-2"><Button size="sm" onClick={() => copyToClipboard(generatedContent.titles.join("\n"))}>Copy All</Button><Button size="sm" onClick={() => downloadAs("txt", generatedContent.titles)}>.txt</Button></div>}
+            {generatedContent.titles?.map((title: string, i: number) => <Card key={i} className="p-3 group"><div className="flex items-start justify-between"><p className="text-sm flex-1">{title}</p><div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="sm" onClick={() => copyToClipboard(title)} className="p-1 h-auto"><Copy className="w-3 h-3" /></Button><Button variant="ghost" size="sm" onClick={() => toggleSave(title)} className="p-1 h-auto"><Heart className={`w-3 h-3 ${savedItems.includes(title) ? 'fill-red-500 text-red-500' : ''}`} /></Button></div></div></Card>)}
+          </TabsContent>
+          
           <TabsContent value="trends" className="h-full space-y-2">
-            <div className="text-xs text-muted-foreground mb-2">
-              Trending keywords & topics
-            </div>
-            {trendingKeywords.map((item, i) => (
-              <Card key={i} className="p-3 cursor-pointer hover:bg-accent transition-colors group">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{item.keyword}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center text-creator-success text-xs">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        {item.trend}
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${item.difficulty === "Easy" ? "text-creator-success border-creator-success" :
-                          item.difficulty === "Medium" ? "text-creator-warning border-creator-warning" :
-                            "text-destructive border-destructive"
-                          }`}
-                      >
-                        {item.difficulty}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 ml-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(item.keyword)}
-                      className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleSave(item.keyword)}
-                      className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Heart
-                        className={`w-3 h-3 ${savedItems.includes(item.keyword) ? 'fill-red-500 text-red-500' : ''}`}
-                      />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+            {generatedContent.trendingTopics?.map((item: string, i: number) => <Card key={i} className="p-3"><p className="text-sm font-medium">{item}</p></Card>)}
           </TabsContent>
 
           <TabsContent value="saved" className="h-full space-y-2">
-            <div className="text-xs text-muted-foreground mb-2">
-              Your saved collection ({savedItems.length})
-            </div>
-            {savedItems.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Star className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No saved items yet</p>
-                <p className="text-xs">Click the heart icon to save items</p>
-              </div>
-            ) : (
-              savedItems.map((item, i) => (
-                <Card key={i} className="p-3 cursor-pointer hover:bg-accent transition-colors group">
-                  <div className="flex items-start justify-between">
-                    <p className="text-sm flex-1 leading-relaxed">{item}</p>
-                    <div className="flex gap-1 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(item)}
-                        className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleSave(item)}
-                        className="p-1 h-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Heart className="w-3 h-3 fill-red-500 text-red-500" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))
-            )}
+            {savedItems.map((item, i) => <Card key={i} className="p-3 group"><div className="flex items-start justify-between"><p className="text-sm flex-1">{item}</p><div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="sm" onClick={() => copyToClipboard(item)} className="p-1 h-auto"><Copy className="w-3 h-3" /></Button><Button variant="ghost" size="sm" onClick={() => toggleSave(item)} className="p-1 h-auto"><Heart className="w-3 h-3 fill-red-500 text-red-500" /></Button></div></div></Card>)}
+            {savedItems.length === 0 && <div className="text-center py-8 text-muted-foreground"><Star className="w-8 h-8 mx-auto mb-2 opacity-50" /><p className="text-sm">No saved items yet</p></div>}
           </TabsContent>
         </div>
       </Tabs>
